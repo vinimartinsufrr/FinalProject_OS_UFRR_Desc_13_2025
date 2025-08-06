@@ -11,7 +11,6 @@ Nero é um dashboard web para o monitoramento de recursos de sistema operacional
 ---
 
 ### Preview do Dashboard
-*(Sugestão: Adicione aqui um screenshot da tela principal do seu dashboard)*
 ![Dashboard Preview](./print%20dashboard/Print-Dashboard.png)
 
 ---
