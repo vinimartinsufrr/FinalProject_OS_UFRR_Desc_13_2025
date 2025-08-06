@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}Sobre — Nero{% endblock %}
+
+{% block content %}
+<!-- Contêiner principal para a página "Sobre". -->
+<div class="sobre-container"
+    style="max-width:540px;margin:2em auto;background:#f7f5fc;padding:2.2em 2.4em 2em 2.4em;border-radius:18px;box-shadow:0 8px 24px #d6d1ec44;">
+
+    <!-- Título principal da página. -->
+    <h2 class="titulo-pagina" style="margin-bottom:1.4em;color:#7c3aed;font-size:2em;font-weight:800;"><i
+            class="fa-solid fa-circle-info"></i> Sobre o Nero</h2>
+
+    <!-- Bloco de texto com a descrição do projeto. -->
+    <div class="sobre-texto" style="font-family:'Segoe UI',sans-serif;color:#5f5197;font-size:1.13em;line-height:1.65;">
+
+        <!-- Parágrafo introdutório explicando o propósito do projeto. -->
+        <p>
+            O <span style="color:#7c3aed;font-weight:600;">Nero</span> foi desenvolvido para monitorar recursos do
+            sistema operacional em tempo real, como parte do projeto da disciplina de Sistemas Operacionais da
+            <strong>Universidade Federal de Roraima (UFRR)</strong>.
+        </p>
+
+        <!-- Lista de funcionalidades e características principais do sistema. -->
+        <ul style="margin:1.5em 0 1.4em 1.1em;font-size:1em;color:#7c3aed;">
+            <li>Monitoramento de uso de <strong>CPU</strong>, <strong>RAM</strong>, <strong>discos</strong> e
+                <strong>rede</strong>
+            </li>
+            <li>Alertas visuais para sobrecarga de CPU</li>
+            <li>Histórico detalhado das métricas</li>
+            <li>Configurações personalizáveis e interface moderna</li>
+            <li>Sistema de login simulado</li>
+            <li>Tema escuro e claro</li>
+        </ul>
+
+        <!-- Caixa de destaque com informações sobre os desenvolvedores e o projeto. -->
+        <div style="background:#ede9fe;border-radius:10px;padding:1.1em 1.4em;margin:1em 0;">
+            <p style="margin-bottom:0.7em;">
+                <strong>Desenvolvedores:</strong> Vinícius Martins e Jasmim Sabini<br>
+                <strong>Professor:</strong> Hebert Rocha<br>
+                <strong>Universidade:</strong> UFRR<br>
+                <strong>Ano:</strong> 2025
+            </p>
+        </div>
+    </div>
+</div>
+{% endblock %}

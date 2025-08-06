@@ -1,0 +1,208 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — Nero{% endblock %}
+
+{% block head_extras %}
+<!-- Importa a biblioteca Chart.js, necessária para renderizar os gráficos. -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="dashboard-container">
+    <h2 class="titulo-pagina"><i class="fa-solid fa-gauge-high"></i> Dashboard de Monitoramento</h2>
+
+    <!-- Div para o alerta de CPU. Fica oculta por padrão e é exibida via JavaScript. -->
+    <div id="alerta" class="alerta" style="display:none;"><i class="fa-solid fa-triangle-exclamation"></i> ALERTA: CPU
+        acima do limite</div>
+
+    <!-- Cards de resumo com as métricas mais atuais. -->
+    <div class="cards-resumo">
+        <div class="card-resumo cpu">
+            <span class="card-titulo"><i class="fa-solid fa-microchip"></i> CPU Atual</span>
+            <span id="cpuAtual" class="card-valor">--%</span>
+        </div>
+        <div class="card-resumo ram">
+            <span class="card-titulo"><i class="fa-solid fa-memory"></i> RAM Atual</span>
+            <span id="ramAtual" class="card-valor">--%</span>
+        </div>
+        <div class="card-resumo net">
+            <span class="card-titulo"><i class="fa-solid fa-network-wired"></i> Rede</span>
+            <span id="netAtual" class="card-valor">-- ↓ / ↑ KB/s</span>
+        </div>
+    </div>
+
+    <!-- Contêineres para os gráficos de linha em tempo real. -->
+    <div class="chart-group">
+        <div class="chart-container"><canvas id="cpuChart"></canvas></div>
+        <div class="chart-container"><canvas id="ramChart"></canvas></div>
+        <div class="chart-container"><canvas id="netChart"></canvas></div>
+    </div>
+
+    <!-- Contêiner para os cards de uso de disco, preenchido dinamicamente. -->
+    <div id="discosCards" class="cards-discos"></div>
+
+    <!-- Informação sobre a última atualização. -->
+    <div class="atualizacao">
+        Última atualização: <span id="horaAtualizacao">--:--</span>
+    </div>
+</div>
+
+<script>
+    // --- Seletores de Elementos do DOM ---
+    // Armazena referências aos elementos HTML que serão atualizados dinamicamente.
+    const alertElem = document.getElementById('alerta');
+    const cpuAtualElem = document.getElementById('cpuAtual');
+    const ramAtualElem = document.getElementById('ramAtual');
+    const netAtualElem = document.getElementById('netAtual');
+    const horaAtualizacaoElem = document.getElementById('horaAtualizacao');
+    const discosCardsElem = document.getElementById('discosCards');
+
+    // --- Definições dos Gráficos (Chart.js) ---
+    // Cria uma nova instância de gráfico para a CPU.
+    const cpuChart = new Chart(document.getElementById('cpuChart').getContext('2d'), {
+        type: 'line', // Tipo de gráfico.
+        data: { labels: [], datasets: [{ label: 'CPU (%)', data: [], borderColor: '#7C3AED', backgroundColor: 'rgba(124,58,237,0.12)', fill: true, tension: 0.3 }] },
+        options: {
+            responsive: true, // O gráfico se ajusta ao tamanho do contêiner.
+            maintainAspectRatio: false, // Permite que o gráfico não mantenha uma proporção fixa.
+            plugins: { legend: { labels: { color: '#7c3aed', font: { size: 15, weight: 'bold' } } } },
+            scales: {
+                y: { min: 0, max: 100, ticks: { color: '#7c3aed' } }, // Configurações do eixo Y.
+                x: { ticks: { color: '#7c3aed', maxRotation: 60, minRotation: 0, autoSkip: true, maxTicksLimit: 6 } } // Configurações do eixo X.
+            }
+        }
+    });
+
+    // Cria uma nova instância de gráfico para a RAM.
+    const ramChart = new Chart(document.getElementById('ramChart').getContext('2d'), {
+        type: 'line',
+        data: { labels: [], datasets: [{ label: 'RAM (%)', data: [], borderColor: '#A78BFA', backgroundColor: 'rgba(167,139,250,0.12)', fill: true, tension: 0.3 }] },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { labels: { color: '#a78bfa', font: { size: 15, weight: 'bold' } } } },
+            scales: {
+                y: { min: 0, max: 100, ticks: { color: '#a78bfa' } },
+                x: { ticks: { color: '#a78bfa', maxRotation: 60, minRotation: 0, autoSkip: true, maxTicksLimit: 6 } }
+            }
+        }
+    });
+
+    // Cria uma nova instância de gráfico para a Rede, com dois conjuntos de dados (Download e Upload).
+    const netChart = new Chart(document.getElementById('netChart').getContext('2d'), {
+        type: 'line',
+        data: {
+            labels: [],
+            datasets: [
+                {
+                    label: 'Download (KB/s)',
+                    data: [],
+                    borderColor: '#22D3EE',
+                    backgroundColor: 'rgba(34,211,238,0.13)',
+                    fill: true,
+                    tension: 0.3
+                },
+                {
+                    label: 'Upload (KB/s)',
+                    data: [],
+                    borderColor: '#F59E42',
+                    backgroundColor: 'rgba(245,158,66,0.13)',
+                    fill: true,
+                    tension: 0.3
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { labels: { color: '#22D3EE', font: { size: 15, weight: 'bold' } } } },
+            scales: {
+                y: { min: 0, ticks: { color: '#22D3EE' } },
+                x: { ticks: { color: '#22D3EE', maxRotation: 60, minRotation: 0, autoSkip: true, maxTicksLimit: 6 } }
+            }
+        }
+    });
+
+    /**
+     * Renderiza os cards de disco com base nas configurações do usuário.
+     * @param {object} discosObj - O objeto de discos da métrica mais recente.
+     */
+    function renderDiscosCards(discosObj) {
+        // Pega a lista de discos que o usuário quer monitorar, salva no localStorage.
+        let discosMonitorados = JSON.parse(localStorage.getItem('discosMonitorados') || '[]');
+        // Se o usuário não configurou nenhum, mostra todos por padrão.
+        if (!discosMonitorados.length)
+            discosMonitorados = Object.keys(discosObj);
+
+        discosCardsElem.innerHTML = ''; // Limpa os cards antigos.
+        discosMonitorados.forEach(dev => {
+            const disco = discosObj[dev];
+            if (!disco) return; // Pula se o disco não existir nos dados atuais.
+            // Adiciona o HTML do novo card de disco.
+            discosCardsElem.innerHTML += `
+                <div class="card-resumo disk">
+                    <span class="card-titulo"><i class="fa-solid fa-hard-drive"></i> ${dev} <span style="color:#a78bfa;">(${disco.mountpoint})</span></span>
+                    <span class="card-valor-disco">${disco.percent}%</span>
+                </div>
+            `;
+        });
+    }
+
+    /**
+     * Função principal que busca os dados e atualiza todos os elementos do dashboard.
+     */
+    function atualizarGraficos() {
+        // Busca os dados históricos da API.
+        fetch('/history').then(r => r.json()).then(data => {
+            if (!data.length) return; // Sai da função se não houver dados.
+
+            const ultimos = data.slice(-10); // Pega os últimos 10 registros para os gráficos.
+            const labels = ultimos.map(d => new Date(d.timestamp * 1000).toLocaleTimeString());
+
+            // --- Atualiza Gráfico de CPU ---
+            cpuChart.data.labels = labels;
+            cpuChart.data.datasets[0].data = ultimos.map(d => d.cpu_percent);
+            cpuChart.update(); // Re-renderiza o gráfico com os novos dados.
+
+            // --- Atualiza Gráfico de RAM ---
+            ramChart.data.labels = labels;
+            ramChart.data.datasets[0].data = ultimos.map(d => d.ram_percent);
+            ramChart.update();
+
+            // --- Atualiza Gráfico de REDE ---
+            netChart.data.labels = labels;
+            netChart.data.datasets[0].data = ultimos.map(d => ((d.net_recv_per_sec || 0) / 1024).toFixed(2)); // Download em KB/s
+            netChart.data.datasets[1].data = ultimos.map(d => ((d.net_sent_per_sec || 0) / 1024).toFixed(2)); // Upload em KB/s
+            netChart.update();
+
+            // --- Atualiza os cards de resumo com a métrica mais recente ---
+            const atual = ultimos[ultimos.length - 1];
+            cpuAtualElem.textContent = `${atual.cpu_percent}%`;
+            ramAtualElem.textContent = `${atual.ram_percent}%`;
+            netAtualElem.textContent =
+                `${((atual.net_recv_per_sec || 0) / 1024).toFixed(1)}↓ / ${((atual.net_sent_per_sec || 0) / 1024).toFixed(1)}↑ KB/s`;
+
+            // --- Verifica o ALERTA de CPU ---
+            let cpuLimite = Number(localStorage.getItem('cpuLimite') || 80); // Pega o limite do localStorage, ou 80 como padrão.
+            if ((atual?.cpu_percent || 0) > cpuLimite) {
+                alertElem.style.display = 'block'; // Mostra o alerta.
+                alertElem.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> ALERTA: CPU acima de ${cpuLimite}%`;
+            } else {
+                alertElem.style.display = 'none'; // Esconde o alerta.
+            }
+
+            // Atualiza a hora da última atualização.
+            horaAtualizacaoElem.textContent = new Date(atual.timestamp * 1000).toLocaleTimeString();
+
+            // Renderiza os cards dos discos com os dados mais recentes.
+            if (atual && atual.discos) renderDiscosCards(atual.discos);
+
+        });
+    }
+
+    // --- Loop de Atualização ---
+    // Chama a função 'atualizarGraficos' a cada 5 segundos para manter o dashboard "vivo".
+    setInterval(atualizarGraficos, 5000);
+    // Chama a função uma vez no início para carregar os dados imediatamente.
+    atualizarGraficos();
+</script>
+{% endblock %}

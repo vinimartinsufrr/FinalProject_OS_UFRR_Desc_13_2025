@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Login — Nero</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Fontes do Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700;400&family=Orbitron:wght@600&display=swap"
+        rel="stylesheet">
+    <!-- Ícones da Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <style>
+        /* Estilo base do corpo da página */
+        body {
+            /* Imagem de fundo que cobre toda a tela */
+            background: url('/static/img/login-bg.png') no-repeat center center fixed;
+            background-size: cover;
+            min-height: 100vh;
+            /* Garante que o corpo ocupe pelo menos toda a altura da tela */
+            margin: 0;
+            font-family: 'Montserrat', Arial, sans-serif;
+        }
+
+        /* Contêiner para centralizar a caixa de login */
+        .login-wrapper {
+            min-height: 100vh;
+            display: flex;
+            /* Usa flexbox para centralização */
+            justify-content: center;
+            /* Centraliza horizontalmente */
+            align-items: center;
+            /* Centraliza verticalmente */
+        }
+
+        /* A caixa de login principal com efeito de vidro (glassmorphism) */
+        .login-box {
+            /* Fundo semi-transparente que é a base do efeito */
+            background: rgba(181, 169, 255, 0.78);
+            /* #b5a9ff */
+            /* Desfoca o conteúdo que está atrás da caixa, criando o efeito de vidro */
+            backdrop-filter: blur(12px) saturate(120%);
+            border-radius: 22px;
+            box-shadow: 0 8px 32px #aaa0ee44, 0 0 0 4px rgba(124, 58, 237, 0.09);
+            padding: 2.8em 2.3em 2.3em 2.3em;
+            max-width: 370px;
+            width: 95%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            border: 2px solid rgba(124, 58, 237, 0.13);
+            position: relative;
+            /* Necessário para o pseudo-elemento ::before */
+            animation: glassFadeIn 1.2s;
+            /* Animação de entrada */
+        }
+
+        /* Animação para a caixa de login aparecer suavemente */
+        @keyframes glassFadeIn {
+            from {
+                transform: scale(0.96);
+                opacity: 0;
+            }
+
+            to {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+
+        /* Pseudo-elemento para criar um brilho sutil ao redor da caixa */
+        .login-box:before {
+            content: "";
+            position: absolute;
+            inset: -3px;
+            /* Posiciona um pouco para fora da caixa */
+            border-radius: 24px;
+            /* Um gradiente que será desfocado para criar o brilho */
+            background: linear-gradient(120deg, #b5a9ff55, #7c3aed55, #a78bfa33);
+            z-index: 0;
+            filter: blur(7px);
+            /* Desfoque que cria o efeito de brilho */
+            opacity: 0.17;
+            pointer-events: none;
+            /* Garante que o brilho não interfira com cliques */
+        }
+
+        .login-logo {
+            width: 86px;
+            margin-bottom: 1.2em;
+            /* Sombra para destacar o logo */
+            filter: drop-shadow(0 4px 12px #fff8) drop-shadow(0 2px 8px #b5a9ff88);
+            z-index: 1;
+            /* Garante que o logo fique acima do brilho */
+        }
+
+        .login-title {
+            color: #522fa0;
+            font-family: 'Orbitron', 'Montserrat', Arial, sans-serif;
+            font-weight: 700;
+            font-size: 1.44em;
+            margin-bottom: 0.5em;
+            text-align: center;
+            letter-spacing: 1px;
+            text-shadow: 0 1px 6px #b5a9ff88;
+            z-index: 1;
+        }
+
+        .login-tagline {
+            color: #7c3aed;
+            font-size: 1.09em;
+            font-weight: 500;
+            margin-bottom: 1.2em;
+            text-align: center;
+            z-index: 1;
+            text-shadow: 0 1px 6px #b5a9ff44;
+        }
+
+        .login-form {
+            width: 100%;
+            z-index: 1;
+        }
+
+        /* Grupo que contém o ícone e o campo de input */
+        .input-group {
+            position: relative;
+            /* Necessário para posicionar o ícone dentro do grupo */
+            margin-bottom: 1.1em;
+        }
+
+        .input-group input {
+            width: 100%;
+            padding: 0.7em 0.7em 0.7em 2.2em;
+            /* Espaçamento interno, maior à esquerda para o ícone */
+            border-radius: 8px;
+            border: 1.5px solid #a78bfa;
+            background: #f7f5fcdd;
+            font-size: 1em;
+            transition: border 0.2s;
+            outline: none;
+            box-sizing: border-box;
+            /* Garante que padding e border não aumentem a largura total */
+            text-align: left;
+        }
+
+        /* Destaca a borda quando o campo está em foco */
+        .input-group input:focus {
+            border-color: #7c3aed;
+        }
+
+        /* Posicionamento do ícone dentro do campo de input */
+        .input-group .fa {
+            position: absolute;
+            left: 0.75em;
+            top: 50%;
+            transform: translateY(-50%);
+            /* Centraliza o ícone verticalmente */
+            color: #7c3aed;
+            font-size: 1.13em;
+            pointer-events: none;
+            /* Ícone não é clicável */
+        }
+
+        .login-form label {
+            color: #522fa0;
+            font-weight: 500;
+            display: block;
+            margin-bottom: 0.4em;
+            margin-top: 0.7em;
+            font-size: 1em;
+        }
+
+        .login-form button {
+            width: 100%;
+            padding: 0.85em;
+            background: linear-gradient(90deg, #7c3aed 0%, #b5a9ff 100%);
+            color: #fff;
+            font-weight: 600;
+            border: none;
+            border-radius: 8px;
+            font-size: 1.12em;
+            cursor: pointer;
+            margin-top: 0.6em;
+            box-shadow: 0 4px 14px #2d1d5a33;
+            transition: background 0.2s, transform 0.2s;
+            letter-spacing: 1px;
+        }
+
+        /* Efeito no botão ao passar o mouse */
+        .login-form button:hover {
+            background: linear-gradient(90deg, #b5a9ff 0%, #7c3aed 100%);
+            transform: scale(1.04);
+            /* Aumenta ligeiramente o tamanho */
+        }
+
+        /* Media query para ajustar o layout em telas menores */
+        @media (max-width: 500px) {
+            .login-box {
+                padding: 1.2em 0.5em;
+            }
+
+            .login-logo {
+                width: 62px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="login-wrapper">
+        <div class="login-box">
+            <img src="/static/img/logo-nero.png" class="login-logo" alt="Logo Nero">
+            <div class="login-title">Bem-vindo ao Nero</div>
+            <div class="login-tagline">Monitore aquilo que importa.</div>
+
+            <!-- Formulário de login que envia os dados para a rota /login via método POST -->
+            <form class="login-form" method="POST" autocomplete="off">
+                <div class="input-group">
+                    <i class="fa fa-user"></i>
+                    <input type="text" id="usuario" name="usuario" placeholder="Usuário" required autofocus>
+                </div>
+                <div class="input-group">
+                    <i class="fa fa-lock"></i>
+                    <input type="password" id="senha" name="senha" placeholder="Senha" required>
+                </div>
+                <button type="submit">Entrar</button>
+            </form>
+        </div>
+    </div>
+</body>
+
+</html>

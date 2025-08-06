@@ -1,0 +1,300 @@
+{% extends "base.html" %}
+{% block title %}Histórico — Nero{% endblock %}
+
+{% block head_extras %}
+<!-- Importa a biblioteca Chart.js para criar os gráficos. -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="historico-container">
+    <h2 class="titulo-pagina"><i class="fa-solid fa-clock-rotate-left"></i> Histórico de Métricas</h2>
+
+    <!-- Grade para exibir os 3 gráficos principais lado a lado. -->
+    <div class="historico-charts-grid">
+        <div class="chart-container"><canvas id="historicoCpuChart" width="1000" height="400"></canvas></div>
+        <div class="chart-container"><canvas id="historicoRamChart" width="1000" height="400"></canvas></div>
+        <div class="chart-container"><canvas id="historicoNetChart" width="1000" height="400"></canvas></div>
+    </div>
+
+    <!-- Formulário com ferramentas para filtrar os dados da tabela. -->
+    <form id="filtroForm" class="table-tools"
+        style="margin-bottom:1.2em;display:flex;align-items:center;gap:1em;flex-wrap:wrap;">
+        <label>
+            Dia:
+            <input type="date" id="filtroDia" style="padding:0.6em;border-radius:8px;border:1px solid #a78bfa;">
+        </label>
+        <label>
+            Horário inicial:
+            <input type="time" id="filtroHoraIni" step="1"
+                style="padding:0.6em;border-radius:8px;border:1px solid #a78bfa;">
+        </label>
+        <label>
+            Horário final:
+            <input type="time" id="filtroHoraFim" step="1"
+                style="padding:0.6em;border-radius:8px;border:1px solid #a78bfa;">
+        </label>
+        <button type="submit" class="btn-roxo" style="height:40px;">Pesquisar</button>
+        <button type="button" id="btnLimpar"
+            style="height:40px;background:#ede9fe;color:#6d28d9;border:none;padding:0 1.3em;border-radius:8px;cursor:pointer;font-weight:600;">Limpar
+            filtros</button>
+    </form>
+
+    <!-- Tabela para exibir os dados históricos detalhados. -->
+    <div class="historico-tabela">
+        <table id="tabelaHistorico">
+            <thead>
+                <tr>
+                    <th>Data e Horário</th>
+                    <th><i class="fa-solid fa-microchip"></i> CPU (%)</th>
+                    <th><i class="fa-solid fa-memory"></i> RAM (%)</th>
+                    <th><i class="fa-solid fa-hard-drive"></i> Discos</th>
+                    <th><i class="fa-solid fa-arrow-up"></i> Enviado (MB)</th>
+                    <th><i class="fa-solid fa-arrow-down"></i> Recebido (MB)</th>
+                </tr>
+            </thead>
+            <!-- O corpo da tabela será preenchido dinamicamente via JavaScript. -->
+            <tbody id="historicoTabelaBody"></tbody>
+        </table>
+    </div>
+</div>
+<script>
+    // --- Variáveis Globais ---
+    let historicoData = []; // Armazena todos os dados recebidos da API.
+    let filtrados = []; // Armazena os dados atualmente exibidos (sejam todos ou os filtrados).
+    let filtroAtivo = false; // Flag para controlar se um filtro está ativo.
+    const MAX_REGISTROS_PAGINA = 60; // Limita a exibição na tabela para os últimos 60 registros por padrão.
+
+    // --- Funções Utilitárias de Formatação de Data/Hora ---
+    function formatDateTime(ts) {
+        let dt = new Date(ts * 1000); // Converte timestamp Unix (segundos) para milissegundos.
+        return dt.toLocaleDateString() + ' ' + dt.toLocaleTimeString();
+    }
+    function formatDateISO(ts) {
+        let dt = new Date(ts * 1000);
+        return dt.toISOString().slice(0, 10); // Formato AAAA-MM-DD
+    }
+    function formatTime(ts) {
+        let dt = new Date(ts * 1000);
+        return dt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }); // Formato HH:MM:SS
+    }
+
+    // --- Inicialização dos Gráficos (Chart.js) ---
+    // Gráfico de CPU
+    const cpuChart = new Chart(document.getElementById('historicoCpuChart').getContext('2d'), {
+        type: 'line',
+        data: { labels: [], datasets: [{ label: 'CPU (%)', data: [], borderColor: '#7C3AED', fill: false, tension: 0.3 }] },
+        options: {
+            responsive: false,
+            maintainAspectRatio: false,
+            plugins: { legend: { labels: { color: '#7C3AED' } } },
+            scales: {
+                x: {
+                    ticks: {
+                        color: '#7C3AED',
+                        maxRotation: 60,
+                        minRotation: 0,
+                        autoSkip: true,
+                        maxTicksLimit: 6
+                    }
+                },
+                y: {
+                    min: 0,
+                    max: 100,
+                    ticks: { color: '#7C3AED' }
+                }
+            }
+        }
+    });
+
+    // Gráfico de RAM
+    const ramChart = new Chart(document.getElementById('historicoRamChart').getContext('2d'), {
+        type: 'line',
+        data: { labels: [], datasets: [{ label: 'RAM (%)', data: [], borderColor: '#A78BFA', fill: false, tension: 0.3 }] },
+        options: {
+            responsive: false,
+            maintainAspectRatio: false,
+            plugins: { legend: { labels: { color: '#A78BFA' } } },
+            scales: {
+                x: {
+                    ticks: {
+                        color: '#A78BFA',
+                        maxRotation: 60,
+                        minRotation: 0,
+                        autoSkip: true,
+                        maxTicksLimit: 6
+                    }
+                },
+                y: {
+                    min: 0,
+                    max: 100,
+                    ticks: { color: '#A78BFA' }
+                }
+            }
+        }
+    });
+
+    // Gráfico de Rede (com dois datasets: Upload e Download)
+    const netChart = new Chart(document.getElementById('historicoNetChart').getContext('2d'), {
+        type: 'line',
+        data: {
+            labels: [],
+            datasets: [
+                {
+                    label: 'Download (MB)',
+                    data: [],
+                    borderColor: '#22D3EE',
+                    backgroundColor: 'rgba(34,211,238,0.11)',
+                    fill: true,
+                    tension: 0.3
+                },
+                {
+                    label: 'Upload (MB)',
+                    data: [],
+                    borderColor: '#F59E42',
+                    backgroundColor: 'rgba(245,158,66,0.11)',
+                    fill: true,
+                    tension: 0.3
+                }
+            ]
+        },
+        options: {
+            responsive: false,
+            maintainAspectRatio: false,
+            plugins: { legend: { labels: { color: '#22D3EE', font: { size: 15, weight: 'bold' } } } },
+            scales: {
+                y: { min: 0, ticks: { color: '#22D3EE' } },
+                x: { ticks: { color: '#22D3EE', maxRotation: 60, minRotation: 0, autoSkip: true, maxTicksLimit: 6 } }
+            }
+        }
+    });
+
+    /**
+     * Atualiza os três gráficos com os dados fornecidos.
+     * @param {Array} data - Um array de objetos de métricas.
+     */
+    function renderGraficos(data) {
+        // Pega apenas os últimos 10 pontos para exibir nos gráficos, para não poluir.
+        let ultimos = data.slice(-10);
+        const labels = ultimos.map(d => formatDateTime(d.timestamp));
+
+        // Atualiza gráfico de CPU
+        cpuChart.data.labels = labels;
+        cpuChart.data.datasets[0].data = ultimos.map(d => d.cpu_percent);
+        cpuChart.update();
+
+        // Atualiza gráfico de RAM
+        ramChart.data.labels = labels;
+        ramChart.data.datasets[0].data = ultimos.map(d => d.ram_percent);
+        ramChart.update();
+
+        // Atualiza gráfico de Rede
+        netChart.data.labels = labels;
+        netChart.data.datasets[0].data = ultimos.map(d => (d.net_recv / 1024 / 1024).toFixed(2)); // Download em MB
+        netChart.data.datasets[1].data = ultimos.map(d => (d.net_sent / 1024 / 1024).toFixed(2)); // Upload em MB
+        netChart.update();
+    }
+
+    /**
+     * Preenche a tabela HTML com os dados fornecidos.
+     * @param {Array} data - Um array de objetos de métricas.
+     */
+    function renderTabela(data) {
+        const corpo = document.getElementById('historicoTabelaBody');
+        corpo.innerHTML = '';
+
+        // Se o filtro não estiver ativo, mostra apenas os últimos 60 registros. Caso contrário, mostra todos os filtrados.
+        let toShow = filtroAtivo ? data : data.slice(-MAX_REGISTROS_PAGINA);
+        // Inverte o array para exibir do mais recente para o mais antigo.
+        toShow = toShow.slice().reverse();
+
+        toShow.forEach((reg, idx) => {
+            // Formata a exibição dos discos, juntando todos em uma única célula.
+            let discos = Object.keys(reg.discos).map(dev =>
+                `<span style="color:#7c3aed;"><i class="fa-solid fa-hard-drive"></i> ${dev}</span> <span style="color:#a78bfa;">(${reg.discos[dev].mountpoint})</span>: <b>${reg.discos[dev].percent}%</b>`
+            ).join('<br>');
+
+            // Adiciona a linha (<tr>) na tabela.
+            corpo.innerHTML += `<tr${(idx % 2 === 0) ? ' style="background:#f3f0fc;"' : ''}>
+                <td style="font-weight:600;color:#7c3aed;">${formatDateTime(reg.timestamp)}</td>
+                <td style="text-align:center;font-weight:500;">${reg.cpu_percent}</td>
+                <td style="text-align:center;font-weight:500;">${reg.ram_percent}</td>
+                <td>${discos}</td>
+                <td style="text-align:center;">${(reg.net_sent / 1024 / 1024).toFixed(2)}</td>
+                <td style="text-align:center;">${(reg.net_recv / 1024 / 1024).toFixed(2)}</td>
+            </tr>`;
+        });
+    }
+
+    /**
+     * Busca os dados históricos completos da API e chama as funções para renderizar.
+     */
+    function carregarHistorico() {
+        fetch('/history').then(r => r.json()).then(data => {
+            historicoData = data; // Armazena a lista completa de dados.
+            if (filtroAtivo) {
+                // Se um filtro já estiver ativo, reaplica ele sobre os novos dados.
+                aplicarFiltro();
+            } else {
+                // Se não houver filtro, simplesmente exibe os dados.
+                filtrados = [...historicoData];
+                renderGraficos(filtrados);
+                renderTabela(filtrados);
+            }
+        });
+    }
+
+    /**
+     * Filtra os dados com base nas seleções do formulário e re-renderiza a página.
+     */
+    function aplicarFiltro(e) {
+        if (e) e.preventDefault(); // Impede o recarregamento da página ao submeter o formulário.
+
+        // Pega os valores dos campos de filtro.
+        let dia = document.getElementById('filtroDia').value;
+        let horaIni = document.getElementById('filtroHoraIni').value;
+        let horaFim = document.getElementById('filtroHoraFim').value;
+
+        filtroAtivo = true;
+
+        // Filtra o array 'historicoData'
+        filtrados = historicoData.filter(reg => {
+            let regDia = formatDateISO(reg.timestamp);
+            let regHora = formatTime(reg.timestamp);
+
+            // Compara cada registro com os filtros. Um filtro vazio é ignorado.
+            let diaOK = !dia || regDia === dia;
+            let horaIniOK = !horaIni || regHora >= horaIni;
+            let horaFimOK = !horaFim || regHora <= horaFim;
+            return diaOK && horaIniOK && horaFimOK;
+        });
+
+        // Re-renderiza gráficos e tabela com os dados filtrados.
+        renderGraficos(filtrados);
+        renderTabela(filtrados);
+    }
+
+    /**
+     * Limpa os campos do formulário e reexibe todos os dados.
+     */
+    function limparFiltros() {
+        document.getElementById('filtroDia').value = "";
+        document.getElementById('filtroHoraIni').value = "";
+        document.getElementById('filtroHoraFim').value = "";
+        filtroAtivo = false;
+        filtrados = [...historicoData]; // Volta a usar a lista completa.
+        renderGraficos(filtrados);
+        renderTabela(filtrados);
+    }
+
+    // --- Event Listeners e Chamadas Iniciais ---
+    // Associa as funções aos eventos de 'submit' e 'click'.
+    document.getElementById('filtroForm').addEventListener('submit', aplicarFiltro);
+    document.getElementById('btnLimpar').addEventListener('click', limparFiltros);
+
+    // Atualiza os dados a cada 5 segundos para manter a página viva.
+    setInterval(carregarHistorico, 5000);
+    // Carrega os dados pela primeira vez ao entrar na página.
+    carregarHistorico();
+</script>
+{% endblock %}

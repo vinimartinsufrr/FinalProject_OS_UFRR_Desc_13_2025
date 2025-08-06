@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+
+<head>
+    <meta charset="UTF-8">
+    <title>{% block title %}Dashboard Pro —Segoe{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="icon" href="{{ url_for('static', filename='img/logo-nero.png') }}" type="image/png">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    {% block head_extras %}{% endblock %}
+</head>
+
+<body class="">
+    <aside class="sidebar">
+        <div class="logo-block">
+            <!-- LOGO DA NERO -->
+            <img src="{{ url_for('static', filename='img/logo-nero.png') }}" alt="Logo Nero" class="logo-img"
+                style="width:52px; margin-bottom:10px; display:block; margin-left:auto; margin-right:auto; filter: drop-shadow(0 2px 7px #a78bfa88);">
+        </div>
+        <nav>
+            <a href="{{ url_for('dashboard') }}" class="{% if request.endpoint == 'dashboard' %}active{% endif %}">
+                <i class="fa-solid fa-gauge-high"></i>
+                <span class="nav-label">Dashboard</span>
+            </a>
+            <a href="{{ url_for('historico') }}" class="{% if request.endpoint == 'historico' %}active{% endif %}">
+                <i class="fa-solid fa-clock-rotate-left"></i>
+                <span class="nav-label">Histórico</span>
+            </a>
+            <a href="{{ url_for('config') }}" class="{% if request.endpoint == 'config' %}active{% endif %}">
+                <i class="fa-solid fa-gear"></i>
+                <span class="nav-label">Configurações</span>
+            </a>
+            <a href="{{ url_for('sobre') }}" class="{% if request.endpoint == 'sobre' %}active{% endif %}">
+                <i class="fa-solid fa-circle-info"></i>
+                <span class="nav-label">Sobre</span>
+            </a>
+        </nav>
+        <div class="spacer"></div>
+        <!-- O botão de tema foi removido daqui -->
+    </aside>
+    <header class="header">
+        <div class="user-info">
+            <span class="avatar"><i class="fa-solid fa-user"></i></span>
+            <span class="username">Olá, {{ usuario }}!</span>
+            <a href="{{ url_for('logout') }}" class="logout-btn">Sair</a>
+        </div>
+    </header>
+    <main class="main-content">
+        {% block content %}{% endblock %}
+    </main>
+    <footer class="footer">
+        <small>Universidade Federal de Roraima — Sistemas Operacionais</small>
+    </footer>
+    <div class="toastr" id="toastr"></div>
+    <script>
+        // A função toggleDarkMode e o window.onload para o tema foram removidos.
+
+        // Toastr - Função mantida para possíveis outros usos.
+        function showToastr(msg) {
+            let t = document.getElementById('toastr');
+            t.textContent = msg;
+            t.style.display = 'block';
+            setTimeout(() => { t.style.display = 'none'; }, 1700);
+        }
+    </script>
+    {% block scripts_extras %}{% endblock %}
+</body>
+
+</html>
